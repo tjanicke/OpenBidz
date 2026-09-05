@@ -27,7 +27,7 @@ def load_excel_data(file_path):  # <-- KEEP THIS EXACTLY AS "file_path"
         return pd.DataFrame()
 
 # THIS IS WHERE YOU PUT YOUR ACTUAL FILE NAME (with quotes)
-EXCEL_FILE = "OpenBids/OpenBids/openbidzdata.xlsx" 
+EXCEL_FILE = "/OpenBids/OpenBids/openbidzdata.xlsx" 
 df_all = load_excel_data(EXCEL_FILE)
 
 
