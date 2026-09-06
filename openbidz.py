@@ -15,7 +15,7 @@ st.set_page_config(
 def load_excel_data(file_path):  # <-- KEEP THIS EXACTLY AS "file_path"
     try:
         # Reads the Excel file
-        df = pd.read_excel(file_path, engine="openpyxl")
+        df = pd.read_csv(file_path)
 
     # Enforce strict string types on codes so leading zeros are preserved
         if "Pay Item #" in df.columns:
@@ -27,7 +27,7 @@ def load_excel_data(file_path):  # <-- KEEP THIS EXACTLY AS "file_path"
         return pd.DataFrame()
 
 # THIS IS WHERE YOU PUT YOUR ACTUAL FILE NAME (with quotes)
-EXCEL_FILE = "openbidzdata.xlsx" 
+EXCEL_FILE = "openbidzdata.csv" 
 df_all = load_excel_data(EXCEL_FILE)
 
 
