@@ -15,9 +15,9 @@ st.set_page_config(
 def load_excel_data(file_path):  # <-- KEEP THIS EXACTLY AS "file_path"
     try:
         # Reads the Excel file
-        df = pd.read_excel(file_path)
-        
-        # Enforce strict string types on codes so leading zeros are preserved
+        df = pd.read_excel(file_path, engine="openpyxl")
+
+    # Enforce strict string types on codes so leading zeros are preserved
         if "Pay Item #" in df.columns:
             df["Pay Item #"] = df["Pay Item #"].astype(str).str.strip()
             
