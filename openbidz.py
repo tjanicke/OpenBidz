@@ -94,7 +94,7 @@ if not df_all.empty:
         ]
 
     # 5. Main UI Header
-    st.title("IDOT Bid Item Report")
+    st.title("Openbidz - IDOT Bid Tab Analysis")
     st.markdown(
         f"### Current Pay Item: `{selected_pay_code}` — **{selected_desc}**"
     )
