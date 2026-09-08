@@ -46,43 +46,45 @@ if not df_all.empty:
     # 3. Sidebar Filters
     st.sidebar.header("Filter Options")
 
-    # Simple Keyword Search Input Bar
+    # Extended Search Bar supporting Code fragments or Keyword chunks
     search_query = st.sidebar.text_input(
-        "🔍 Search Descriptions",
-        placeholder="Type keywords (e.g., concrete, pipe, seeding)",
+        "🔍 Search Pay Items",
+        placeholder="Type code or phrase (e.g., 501 or concrete)",
     )
 
-    # Filter available Pay Items based on search string
+    # Filter available options matching ANY fragment (OR logic)
     if search_query:
-        # Case-insensitive substring match
+        # Case-insensitive substring query applied over Code and Text structures
         matched_items = df_unique_items[
             df_unique_items["Pay Item Description"].str.contains(
+                search_query, case=False, na=False
+            )
+            | df_unique_items["Pay Item #"].str.contains(
                 search_query, case=False, na=False
             )
         ]
     else:
         matched_items = df_unique_items
 
-    # 4. Pay Item Selection Dropdown (Dynamically updated by search bar)
+    # 4. Pay Item Selection Dropdown (Dynamically updated by partial match engine)
     if not matched_items.empty:
-        # Create a clean label format: "CODE - DESCRIPTION"
+        # Generate user-friendly lookup tags
         matched_items["Dropdown Label"] = (
             matched_items["Pay Item #"] + " - " + matched_items["Pay Item Description"]
         )
         choice_options = sorted(matched_items["Dropdown Label"].tolist())
 
         selected_choice = st.sidebar.selectbox(
-            "Select Pay Item #", options=choice_options, index=0
+            "Select Matching Item", options=choice_options, index=0
         )
 
-        # Parse selected code and description back out of the label string
-        selected_pay_code = selected_choice.split(" - ")[0]
+        # Safely split exact code back out using maximum array split constraints
+        selected_pay_code = selected_choice.split(" - ", 1)[0]
         selected_desc = df_unique_items[
             df_unique_items["Pay Item #"] == selected_pay_code
         ]["Pay Item Description"].iloc[0]
     else:
-        st.sidebar.error("❌ No pay items match your search keywords.")
-        # Fallback placeholders to prevent downstream execution crashes
+        st.sidebar.error("❌ No pay item numbers or descriptions match your query.")
         selected_pay_code = None
         selected_desc = None
 
@@ -111,7 +113,6 @@ if not df_all.empty:
     )
 
     # 5. Filter Logic Implementation
-    # Only run main UI pipeline if a valid code was successfully grabbed from the filters above
     if selected_pay_code:
         filtered_df = df_all[df_all["Pay Item #"] == selected_pay_code]
 
@@ -223,7 +224,7 @@ if not df_all.empty:
             )
     else:
         st.info(
-            "Please clear or adjust your keyword search criteria in the sidebar to populate items."
+            "Please clear or adjust your partial keyword search criteria in the sidebar to populate items."
         )
 else:
     st.info("Awaiting structural loading from the Parquet sheet dataset.")
