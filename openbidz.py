@@ -5,7 +5,7 @@ import streamlit as st
 
 # 1. Page Configuration
 st.set_page_config(
-    page_title="IDOT Bid Item Report - Parquet Version",
+    page_title="Openbidz - Open Source IDOT Cost Estimate Tool",
     layout="wide",
     initial_sidebar_state="expanded",
 )
