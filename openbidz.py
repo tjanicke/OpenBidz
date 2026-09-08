@@ -46,29 +46,32 @@ if not df_all.empty:
     # 3. Sidebar Filters
     st.sidebar.header("Filter Options")
 
-    # Extended Search Bar supporting Code fragments or Keyword chunks
+    # Search Bar supporting Code fragments or non-consecutive Keyword chunks
     search_query = st.sidebar.text_input(
         "🔍 Search Pay Items",
-        placeholder="Type code or phrase (e.g., 501 or concrete)",
-    )
+        placeholder="Type keywords (e.g., concrete pipe)",
+    ).strip()
 
-    # Filter available options matching ANY fragment (OR logic)
+    # Advanced Non-Consecutive Multi-Word Filter Engine
     if search_query:
-        # Case-insensitive substring query applied over Code and Text structures
-        matched_items = df_unique_items[
-            df_unique_items["Pay Item Description"].str.contains(
-                search_query, case=False, na=False
-            )
-            | df_unique_items["Pay Item #"].str.contains(
-                search_query, case=False, na=False
-            )
-        ]
+        # Split search query into individual lowercase word tokens
+        search_words = search_query.split()
+        
+        # Start with all unique items
+        matched_items = df_unique_items.copy()
+        
+        # Iteratively filter down: every single keyword typed must match either the code or description
+        for word in search_words:
+            matched_items = matched_items[
+                matched_items["Pay Item Description"].str.contains(word, case=False, na=False) |
+                matched_items["Pay Item #"].str.contains(word, case=False, na=False)
+            ]
     else:
-        matched_items = df_unique_items
+        matched_items = df_unique_items.copy()
 
-    # 4. Pay Item Selection Dropdown (Dynamically updated by partial match engine)
+    # 4. Pay Item Selection Dropdown
     if not matched_items.empty:
-        # Generate user-friendly lookup tags
+        # Create a clean label format: "CODE - DESCRIPTION"
         matched_items["Dropdown Label"] = (
             matched_items["Pay Item #"] + " - " + matched_items["Pay Item Description"]
         )
@@ -78,11 +81,15 @@ if not df_all.empty:
             "Select Matching Item", options=choice_options, index=0
         )
 
-        # Safely split exact code back out using maximum array split constraints
+        # Extract EXACTLY the code string by targeting index 0
         selected_pay_code = selected_choice.split(" - ", 1)[0]
-        selected_desc = df_unique_items[
-            df_unique_items["Pay Item #"] == selected_pay_code
-        ]["Pay Item Description"].iloc[0]
+        
+        # Grab description safely
+        desc_series = df_unique_items[df_unique_items["Pay Item #"] == selected_pay_code]["Pay Item Description"]
+        selected_desc = desc_series.iloc[0] if not desc_series.empty else "No description available"
+        
+        # UI Help: Show user how many partial matches were found
+        st.sidebar.caption(f"Found {len(matched_items)} matching items.")
     else:
         st.sidebar.error("❌ No pay item numbers or descriptions match your query.")
         selected_pay_code = None
