@@ -110,17 +110,9 @@ if not df_all.empty:
         "District", options=district_options, index=0
     )
 
-    # Quantity Filters
-    max_qty_dataset = (
-        int(df_all["Quantity"].max()) if "Quantity" in df_all.columns else 100000
-    )
-    mnq = st.sidebar.number_input("Minimum Quantity (mnq)", min_value=0, value=0)
-    mxq = st.sidebar.number_input(
-        "Maximum Quantity (mxq)", min_value=0, value=max_qty_dataset
-    )
-
     # 5. Filter Logic Implementation (Sidebar level parameters)
     if selected_pay_code:
+        # Pre-filter by pay code, county, and district to find the exact quantity bounds for this subset
         filtered_df = df_all[df_all["Pay Item #"] == selected_pay_code]
 
         if selected_county != "County (All)":
@@ -131,11 +123,6 @@ if not df_all.empty:
                 filtered_df["Dist"].astype(str) == selected_district
             ]
 
-        if mxq > mnq:
-            filtered_df = filtered_df[
-                (filtered_df["Quantity"] >= mnq) & (filtered_df["Quantity"] <= mxq)
-            ]
-
         # 6. Main UI Header
         st.title("Openbidz - IDOT Bid Tab Analysis")
         st.markdown(
@@ -143,36 +130,51 @@ if not df_all.empty:
         )
 
         if not filtered_df.empty:
-            # 7. Interactive Price Slider Section (Moved UP before calculations)
-            st.subheader("Interactive Price Filter & Analysis")
-            min_p = float(filtered_df["Award Unit Price"].min())
-            max_p = float(filtered_df["Award Unit Price"].max())
+            # 7. Interactive QUANTITY Slider Section (Replaced Price Slider)
+            st.subheader("Interactive Quantity Filter & Analysis")
+            
+            # Determine dynamic boundaries strictly based on the filtered item subset
+            min_qty_dataset = int(filtered_df["Quantity"].min()) if "Quantity" in filtered_df.columns else 0
+            max_qty_dataset = int(filtered_df["Quantity"].max()) if "Quantity" in filtered_df.columns else 100000
 
-            if min_p != max_p:
-                price_range = st.slider(
-                    "Adjust price range bounds:", min_p, max_p, (min_p, max_p)
+            if min_qty_dataset != max_qty_dataset:
+                # Main page slider acts as the master quantity boundary tool
+                quantity_range = st.slider(
+                    "Adjust quantity range bounds:", 
+                    min_value=min_qty_dataset, 
+                    max_value=max_qty_dataset, 
+                    value=(min_qty_dataset, max_qty_dataset)
                 )
+                
+                # Apply the active slider limits to form final_df
                 final_df = filtered_df[
-                    (filtered_df["Award Unit Price"] >= price_range[0])
-                    & (filtered_df["Award Unit Price"] <= price_range[1])
+                    (filtered_df["Quantity"] >= quantity_range[0])
+                    & (filtered_df["Quantity"] <= quantity_range[1])
                 ].copy()
+                
+                # Dynamically sync boundaries back to sidebar fields for readability
+                st.sidebar.markdown("---")
+                st.sidebar.markdown("### Active Quantity Boundaries")
+                st.sidebar.info(f"**Minimum:** {quantity_range[0]:,}")
+                st.sidebar.info(f"**Maximum:** {quantity_range[1]:,}")
             else:
-                st.info(f"All items are identically priced at ${min_p}")
+                unit_type = filtered_df["Unit"].iloc[0] if "Unit" in filtered_df.columns else "Units"
+                st.info(f"All matching items have an identical quantity volume of {min_qty_dataset:,} {unit_type}")
                 final_df = filtered_df.copy()
 
             st.markdown("---")
 
-            # 8. Dynamic Metrics Calculation Block (Uses final_df now)
+            # 8. Dynamic Metrics Calculation Block (Uses final_df now filtered by quantity)
             if not final_df.empty:
                 col1, col2, col3 = st.columns(3)
 
-                # Safeguard: Drop empty values specifically from the slider-filtered data
+                # Safeguard: Drop empty values specifically from the filtered data
                 math_df = final_df.dropna(subset=["Quantity", "Award Unit Price"])
                 
                 total_qty = math_df["Quantity"].sum()
                 total_cost = (math_df["Quantity"] * math_df["Award Unit Price"]).sum()
                 
-                # Dynamic calculations based on active slider boundaries
+                # Dynamic calculations based on active quantity boundaries
                 weighted_avg = total_cost / total_qty if total_qty > 0 else 0
                 avg_qty = math_df["Quantity"].mean() if len(math_df) > 0 else 0
                 
@@ -235,13 +237,14 @@ if not df_all.empty:
                     use_container_width=True,
                 )
             else:
-                st.warning("No contracts fit inside the custom price range boundaries you've chosen above.")
+                st.warning("No contracts fit inside the custom quantity range boundaries you've chosen above.")
         else:
             st.warning(
                 "No historical letting items matched your exact selection criteria. Try widening your filters."
             )
     else:
         st.info(
+
             "Please clear or adjust your partial keyword search criteria in the sidebar to populate items."
         )
 else:
