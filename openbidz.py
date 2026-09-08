@@ -119,7 +119,7 @@ if not df_all.empty:
         "Maximum Quantity (mxq)", min_value=0, value=max_qty_dataset
     )
 
-    # 5. Filter Logic Implementation
+    # 5. Filter Logic Implementation (Sidebar level parameters)
     if selected_pay_code:
         filtered_df = df_all[df_all["Pay Item #"] == selected_pay_code]
 
@@ -142,36 +142,8 @@ if not df_all.empty:
             f"### Current Pay Item: `{selected_pay_code}` — **{selected_desc}**"
         )
 
-        # 7. Metrics & Calculation Block (Weighted Average Tool)
         if not filtered_df.empty:
-            col1, col2, col3 = st.columns(3)
-
-            math_df = filtered_df.dropna(subset=["Quantity", "Award Unit Price"])
-            total_qty = math_df["Quantity"].sum()
-            total_cost = (math_df["Quantity"] * math_df["Award Unit Price"]).sum()
-            weighted_avg = total_cost / total_qty if total_qty > 0 else 0
-            unit_type = (
-                filtered_df["Unit"].iloc[0]
-                if "Unit" in filtered_df.columns
-                else "Units"
-            )
-
-            with col1:
-                st.metric(
-                    label="Weighted Average Price", value=f"${weighted_avg:,.2f}"
-                )
-            with col2:
-                st.metric(
-                    label="Total Bidded Quantity", value=f"{total_qty:,} {unit_type}"
-                )
-            with col3:
-                st.metric(
-                    label="Total Contracts Found", value=str(len(filtered_df))
-                )
-
-            st.markdown("---")
-
-            # Price Sliders for Ad-hoc adjustment
+            # 7. Interactive Price Slider Section (Moved UP before calculations)
             st.subheader("Interactive Price Filter & Analysis")
             min_p = float(filtered_df["Award Unit Price"].min())
             max_p = float(filtered_df["Award Unit Price"].max())
@@ -183,48 +155,87 @@ if not df_all.empty:
                 final_df = filtered_df[
                     (filtered_df["Award Unit Price"] >= price_range[0])
                     & (filtered_df["Award Unit Price"] <= price_range[1])
-                ]
+                ].copy()
             else:
                 st.info(f"All items are identically priced at ${min_p}")
-                final_df = filtered_df
+                final_df = filtered_df.copy()
 
-            # 8. Data Visualization: Quantity vs Unit Price Plot
-            st.subheader("Plot: Quantity vs Unit Price")
-            hover_features = [
-                col for col in ["Contract", "Date", "Dist"] if col in final_df.columns
-            ]
+            st.markdown("---")
 
-            fig = px.scatter(
-                final_df,
-                x="Quantity",
-                y="Award Unit Price",
-                color="County" if "County" in final_df.columns else None,
-                hover_data=hover_features,
-                size="Quantity",
-                size_max=25,
-                title=f"Price vs Volume Structure for Code {selected_pay_code}",
-                template="plotly_white",
-            )
-            fig.update_layout(
-                xaxis_title="Quantity", yaxis_title="Award Unit Price ($)"
-            )
-            st.plotly_chart(fig, use_container_width=True)
+            # 8. Dynamic Metrics Calculation Block (Uses final_df now)
+            if not final_df.empty:
+                col1, col2, col3 = st.columns(3)
 
-            # 9. Results Data Table View
-            st.subheader("Bid Results Details Table")
-            all_cols = final_df.columns.tolist()
-            visible_cols = st.multiselect(
-                "Show/Hide Columns", options=all_cols, default=all_cols
-            )
+                # Safeguard: Drop empty values specifically from the slider-filtered data
+                math_df = final_df.dropna(subset=["Quantity", "Award Unit Price"])
+                
+                total_qty = math_df["Quantity"].sum()
+                total_cost = (math_df["Quantity"] * math_df["Award Unit Price"]).sum()
+                
+                # Dynamic calculations based on active slider boundaries
+                weighted_avg = total_cost / total_qty if total_qty > 0 else 0
+                avg_qty = math_df["Quantity"].mean() if len(math_df) > 0 else 0
+                
+                unit_type = (
+                    final_df["Unit"].iloc[0]
+                    if "Unit" in final_df.columns
+                    else "Units"
+                )
 
-            if not visible_cols:
-                visible_cols = all_cols
+                with col1:
+                    st.metric(
+                        label="Weighted Average Price", value=f"${weighted_avg:,.2f}"
+                    )
+                with col2:
+                    st.metric(
+                        label="Average Bid Quantity", value=f"{avg_qty:,.1f} {unit_type}"
+                    )
+                with col3:
+                    st.metric(
+                        label="Total Contracts Found", value=str(len(final_df))
+                    )
+                
+                st.markdown("---")
 
-            sort_col = "Date" if "Date" in final_df.columns else all_cols[0]
-            st.dataframe(
-                final_df[visible_cols].sort_values(by=sort_col, ascending=False),
-                use_container_width=True,
-            )
+                # 9. Data Visualization: Quantity vs Unit Price Plot
+                st.subheader("Plot: Quantity vs Unit Price")
+                hover_features = [
+                    col for col in ["Contract", "Date", "Dist"] if col in final_df.columns
+                ]
+
+                fig = px.scatter(
+                    final_df,
+                    x="Quantity",
+                    y="Award Unit Price",
+                    color="County" if "County" in final_df.columns else None,
+                    hover_data=hover_features,
+                    size="Quantity",
+                    size_max=25,
+                    title=f"Price vs Volume Structure for Code {selected_pay_code}",
+                    template="plotly_white",
+                )
+                fig.update_layout(
+                    xaxis_title="Quantity", yaxis_title="Award Unit Price ($)"
+                )
+                st.plotly_chart(fig, use_container_width=True)
+
+                # 10. Results Data Table View
+                st.subheader("Bid Results Details Table")
+                all_cols = final_df.columns.tolist()
+                visible_cols = st.multiselect(
+                    "Show/Hide Columns", options=all_cols, default=all_cols
+                )
+
+                if not visible_cols:
+                    visible_cols = all_cols
+
+                sort_col = "Date" if "Date" in final_df.columns else all_cols[0]
+                st.dataframe(
+                    final_df[visible_cols].sort_values(by=sort_col, ascending=False),
+                    use_container_width=True,
+                )
+            else:
+                st.warning("No contracts fit inside the custom price range boundaries you've chosen above.")
         else:
             st.warning(
                 "No historical letting items matched your exact selection criteria. Try widening your filters."
